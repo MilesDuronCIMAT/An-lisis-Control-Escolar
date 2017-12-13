@@ -13141,3 +13141,4 @@ ce = db.datos
 for idx, row in lic_pos.iterrows():
     ce.insert_one(json.loads(row.to_json()))
 ```
+**Total de registros almacenados: 3,169,561**
