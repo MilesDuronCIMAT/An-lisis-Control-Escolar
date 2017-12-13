@@ -13142,3 +13142,380 @@ for idx, row in lic_pos.iterrows():
     ce.insert_one(json.loads(row.to_json()))
 ```
 **Total de registros almacenados: 3,169,561**
+
+## Procesamiento y Visualización
+
+
+```python
+from bson.code import Code
+from pymongo import MongoClient
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import numpy as np
+
+con = MongoClient()
+db = con.control_escolar
+```
+
+### Matricula total por Unidad Académica por año de avance
+
+
+
+
+```python
+map=Code("""function(){
+                emit({unidad:this.unidad_agrupada,anio:this.anio,matricula:this.matricula},1);
+                }""")
+reduce=Code("""function(key,values){
+                matriculaTotal = 0;
+                values.forEach(function(v){matriculaTotal+=v;})
+                return matriculaTotal;
+                
+            }""")
+result = db.datos.map_reduce(map,reduce,"matricula_total",full_response=True)
+map=Code("""function(){
+                emit({unidad:this._id.unidad,anio:this._id.anio},1);
+                }""")
+reduce=Code("""function(key,values){
+                matriculaTotal = 0;
+                values.forEach(function(v){matriculaTotal+=v;})
+                return matriculaTotal;
+                
+            }""")
+result = db.matricula_total.map_reduce(map,reduce,"matricula_total",full_response=True)
+print(result)
+```
+
+    {u'counts': {u'input': 329322, u'reduce': 3788, u'emit': 329322, u'output': 507}, u'timeMillis': 3438, u'ok': 1.0, u'result': u'matricula_total'}
+
+
+
+```python
+results = db.matricula_total.aggregate([
+     {"$match":{"$or":[{"_id.unidad":"AGRONOMIA"},{"_id.unidad":"INGENIERIA ELECTRICA"},{"_id.unidad":"DERECHO"},
+                       {"_id.unidad":"PSICOLOGIA"}]}},
+    { '$unwind': '$_id' },
+    { '$project': {
+        '_id': 0,
+        'anio': '$_id.anio',
+        'unidad':'$_id.unidad',
+        'value': '$value',
+       }
+     }
+])
+
+data = pd.DataFrame(list(results))
+matricula = data['value'].groupby([data['anio'],data['unidad']]).mean().unstack()
+
+matricula.plot(kind='line',figsize=(17,10))
+plt.xlabel('Anio Escolar')
+plt.ylabel('Matricula')
+plt.show()
+
+```
+
+
+    <matplotlib.figure.Figure at 0x7f72fac5f4d0>
+
+
+
+![png](output_4_1.png)
+
+
+### Alumnos Regulares e Irregulares
+
+
+```python
+map=Code("""function(){
+                emit({unidad:this.unidad_agrupada,programa:this.programa_agrupado,anio:this.anio,matricula:this.matricula},
+                {count:1,aprobado:this.aprobado});
+            }""")
+reduce=Code("""function(key,values){
+                reducedVal = { count: 0, aprobado: 0};
+                values.forEach(function(v){
+                    reducedVal.aprobado+=v.aprobado;
+                    reducedVal.count+=v.count;
+                    
+                })
+                return reducedVal;
+                
+            }""")
+finalize=Code("""function(key,value){
+                value.reprobado=value.count-value.aprobado
+                if(value.reprobado>0)
+                    value.regular=0
+                else
+                    value.regular=1
+                return value;
+                
+            }""")
+result = db.datos.map_reduce(map,reduce,"alumnos_regulares",finalize=finalize,full_response=True)
+map=Code("""function(){
+                emit({unidad:this._id.unidad,programa:this._id.programa,anio:this._id.anio},
+                {count:1,regular:this.value.regular});
+            }""")
+reduce=Code("""function(key,values){
+                reducedVal ={count:0,regular:0};
+                values.forEach(function(v){
+                    reducedVal.count+=v['count'];
+                    reducedVal.regular+=v['regular'];
+                    
+                })
+                return reducedVal;
+                
+            }""")
+finalize=Code("""function(key,value){
+                value.irregulares=value.count-value.regular;
+                return value;
+                
+            }""")
+result = db.alumnos_regulares.map_reduce(map,reduce,"alumnos_regulares",query={"_id.anio":{"$ne":"2017"}},finalize=finalize,full_response=True)
+print(result)
+```
+
+    {u'counts': {u'input': 307330, u'reduce': 4434, u'emit': 307330, u'output': 1526}, u'timeMillis': 5842, u'ok': 1.0, u'result': u'alumnos_regulares'}
+
+
+
+```python
+results = db.alumnos_regulares.aggregate([
+     {"$match":{"_id.unidad":"CIENCIAS DE LA SALUD"}},
+    { '$unwind': '$_id' },
+    { '$project': {
+        '_id': 0,
+        'anio': '$_id.anio',
+        'unidad':'$_id.unidad',
+        'programa':'$_id.programa',
+        'regular': '$value.regular',
+        'irregular':'$value.irregulares'
+       }
+     }
+])
+data = pd.DataFrame(list(results))
+programas = data['programa'].unique()
+for programa in programas:
+    regular=data.groupby(['anio','programa']).mean().unstack().regular[programa].fillna(0)
+    irregular=data.groupby(['anio','programa']).mean().unstack().irregular[programa].fillna(0)
+    lim=max(regular+irregular)
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax2 = ax.twinx()
+    ax2.set_ylim([0, lim])
+    ax.set_ylim([0, lim])
+    width = 0.4
+    
+    regular.plot(kind='bar',color='blue',ax=ax,figsize=(15,5),label='rekasd', width=width,position=0)
+    irregular.plot(kind='bar',color='red',ax=ax2,figsize=(15,5),label='asdasd', width=width,position=1)
+    
+    red_patch = mpatches.Patch(color='red', label='Irregulares')
+    blue_patch = mpatches.Patch(color='blue', label='Regulares')
+    
+    plt.legend(handles=[red_patch,blue_patch])
+    ax.set_xlabel('Anio Escolar')
+    ax.set_title(programa)
+    plt.show()
+```
+
+
+![png](output_7_0.png)
+
+
+
+![png](output_7_1.png)
+
+
+
+![png](output_7_2.png)
+
+
+
+![png](output_7_3.png)
+
+
+
+![png](output_7_4.png)
+
+
+### Materias más reprobadas por programa
+
+
+```python
+map=Code("""function(){
+                emit({unidad:this.unidad_agrupada,programa:this.programa_agrupado,materia:this.materia, anio:this.anio},
+                {count:1,aprobado:this.aprobado});
+            }""")
+reduce=Code("""function(key,values){
+                reducedVal ={count:0,aprobado:0};
+                values.forEach(function(v){
+                    reducedVal.count+=v.count;
+                    reducedVal.aprobado+=v.aprobado;
+                    
+                })
+                return reducedVal;
+                
+            }""")
+finalize=Code("""function(key,value){
+                value.reprobado=value.count-value.aprobado;
+                return value;
+                
+            }""")
+result = db.datos.map_reduce(map,reduce,"materias_reprobadas",query={"_id.anio":{"$ne":"2017"}},finalize=finalize,full_response=True)
+print(result)
+
+```
+
+    {u'counts': {u'input': 3169561, u'reduce': 459256, u'emit': 3169561, u'output': 52278}, u'timeMillis': 91117, u'ok': 1.0, u'result': u'materias_reprobadas'}
+
+
+
+```python
+results = db.materias_reprobadas.aggregate([
+     {"$match":{"$and":[{"_id.unidad":"CIENCIAS DE LA SALUD"},
+                        {"_id.programa":"QUIMICO FARMACEUTICO-BIOLOGO"},
+                        {"_id.anio":"2016"}]}},
+    { '$unwind': '$_id' },
+    { '$project': {
+        '_id': 0,
+        'unidad':'$_id.unidad',
+        'programa':'$_id.programa',
+        'materia': '$_id.materia',
+        'total':'$value.count',
+        'aprobado':'$value.aprobado',
+        'reprobado':'$value.reprobado',
+       }
+     }, { '$sort' : { 'reprobado' : -1} },
+    { '$limit' : 5 }
+])
+data = pd.DataFrame(list(results))
+
+programas = data['programa'].unique()
+for programa in programas:
+    materias = data[data['programa'].str.contains(programa)].materia.unique()
+    aprobado=data[data['programa'].str.contains(programa)].aprobado
+    reprobado=data[data['programa'].str.contains(programa)].reprobado
+    width = 0.35
+    N = len(materias)
+    ind = np.arange(N)
+    p1 = plt.barh(ind, aprobado, width )
+    p2 = plt.barh(ind, reprobado, width,left=aprobado )
+    plt.xlim([0,400])
+    plt.legend((p1[0], p2[0]), ('Aprobado', 'Reprobado'))
+    plt.yticks(ind, materias)
+    plt.title(programas[0])
+    plt.show()
+
+```
+
+
+![png](output_10_0.png)
+
+
+### Promedios más bajos y más altos por unidad
+
+
+```python
+map=Code("""function(){
+                emit({unidad:this.unidad_agrupada,
+                programa:this.programa_agrupado,
+                anio:this.anio,
+                matricula:this.matricula},
+                {count:1,aprobado:this.aprobado,calif:this.calif});
+            }""")
+reduce=Code("""function(key,values){
+                reducedVal = { count:0,aprobado: 0, calif: 0.0};
+                values.forEach(function(v){
+                        reducedVal.count+=v.count;
+                        reducedVal.aprobado+=v.aprobado;
+                        reducedVal.calif+=v.calif
+            
+                })
+                return reducedVal;
+                
+            }""")
+finalize=Code("""function(key,value){
+                value.promedio=(value.calif)/value.aprobado
+                value.reprobado=value.count-value.aprobado;
+                return value;
+                
+            }""")
+result = db.datos.map_reduce(map,reduce,"promedios",finalize=finalize,full_response=True)
+
+print(result)
+```
+
+    {u'counts': {u'input': 3169561, u'reduce': 828099, u'emit': 3169561, u'output': 331532}, u'timeMillis': 126535, u'ok': 1.0, u'result': u'promedios'}
+
+
+
+```python
+altos = db.promedios.aggregate([
+    {'$match':{"$and":[{"_id.unidad":"AGRONOMIA"},{'value.reprobado':0},{'$or':[{'_id.anio':'2016'},{'_id.anio':'2015'},{'_id.anio':'2014'}]}]}},
+    {'$group':
+         {
+           '_id':{ 'unidad':'$_id.unidad','programa':'$_id.programa','anio':'$_id.anio'},
+           'maxPromedio': { '$max': '$value.promedio' }
+         }
+    },
+    { '$project': {
+        '_id': 0,
+        'unidad':'$_id.unidad',
+        'programa':'$_id.programa',
+        'anio': '$_id.anio',
+        'maxPromedio':'$maxPromedio'
+       }
+    },
+    { '$sort' : { '_id.anio' : 1,'maxPromedio':-1} }
+])
+bajos = db.promedios.aggregate([
+    {'$match':{"$and":[{"_id.unidad":"AGRONOMIA"},{'value.reprobado':0},{'$or':[{'_id.anio':'2016'},{'_id.anio':'2015'},{'_id.anio':'2014'}]}]}},
+    {'$group':
+         {
+           '_id':{ 'unidad':'$_id.unidad','programa':'$_id.programa','anio':'$_id.anio'},
+           'minPromedio': { '$min': '$value.promedio' }
+         }
+    },
+    { '$project': {
+        '_id': 0,
+        'unidad':'$_id.unidad',
+        'programa':'$_id.programa',
+        'anio': '$_id.anio',
+        'minPromedio':'$minPromedio'
+       }
+    },
+    { '$sort' : { '_id.anio' : 1,'maxPromedio':-1} }
+])
+data = pd.DataFrame(list(altos))
+alto = data['maxPromedio'].groupby([data['programa'],data['anio']]).mean().unstack()
+
+alto.plot(kind='barh',figsize=(17,10))
+plt.xlabel('Promedio',fontsize=18)
+plt.ylabel('Materias',fontsize=18)
+plt.xlim([0,10])
+plt.title("Promedios altos de Agronomia",fontsize=18)
+
+data = pd.DataFrame(list(bajos))
+bajo = data['minPromedio'].groupby([data['programa'],data['anio']]).mean().unstack()
+
+bajo.plot(kind='barh',figsize=(17,10))
+plt.xlabel('Promedio',fontsize=18)
+plt.ylabel('Materias',fontsize=18)
+plt.xlim([0,10])
+plt.title("Promedios bajos de Agronomia",fontsize=18)
+
+plt.show()
+
+```
+
+
+![png](output_13_0.png)
+
+
+
+![png](output_13_1.png)
+
+
+
+```python
+
+```
