@@ -16,6 +16,14 @@ Los datos utilizados para este proyecto se obtuvieron de las bases de datos inst
 
 ![Diagrama base de datos](https://github.com/MilesDuronCIMAT/Analisis-Control-Escolar/blob/master/Diagrama.jpg)
 
+Para este ejercicio en particular se busca contestar las siguientes preguntas:
+
+- ¿Cuál es la matricula total por Unidad académica, programa y ciclo escolar desde el año 2000 a la fecha?
+- ¿Cuál es el número de alumnos regulares e irregulares Unidad académica, programa y ciclo escolar desde el año 2000 a la fecha?
+- ¿Cuáles son las 3 materias más reprobadas por programa académico?
+- ¿Cuales son los promedios mas altos y mas bajos de cada programa académico?
+
+
 ## 2.Análisis Exploratorio
 
 La estructura final despues de un procesado inicial en SQL Server es la siguiente:
@@ -50,7 +58,7 @@ El resultado final fue almacenado en un archivo CSV llamado 'ControlEscolarFinal
 
 La transformación y limpieza de los datos se desarrollo utilizando los comandos de la siguiente manera:
 
-Primero se carga el archivo que contiene todos nuestros datos
+Primero se carga el archivo que contiene todos nuestros datos.
 
 
 ```python
@@ -58,6 +66,8 @@ import numpy as np
 import pandas as pd
 ts= pd.read_csv('ControlEscolarFinal.csv')
 ```
+
+Mostramos los primeros 5 registros para asegurarnos de que se cargó correctamente.
 
 
 ```python
@@ -236,6 +246,8 @@ ts.head()
 
 
 
+Al venir de una base de datos SQL, los campos con información de texto cuentan con espacios que rellenan la longitud total posible del campo ```'PREPARATORIA NO. 2       '``` por lo que es necesario quitar los espacios vacios al final de dichos campos.
+
 
 ```python
 ts['matricula']=ts['matricula'].str.strip()
@@ -244,6 +256,8 @@ ts['programa']=ts['programa'].str.strip()
 ts['plan']=ts['plan'].str.strip()
 ts['materia']=ts['materia'].str.strip()
 ```
+
+Como solo se quieren los datos del año 2000 a la fecha, se procede a eleminar todos aquellos registros que no entren dentro del rango.
 
 
 ```python
@@ -286,6 +300,8 @@ ts=ts[(
 )]
 
 ```
+
+El identificador único de cada alumno es su matricula la cual siempre debe constar de 8 caracteres, por lo que se consideran como registros basura todos aquellos que contengan matriculas de longitud diferente a 8.
 
 
 ```python
@@ -1770,6 +1786,8 @@ ts[ts['matricula'].str.len()<8]
 
 
 
+De igual manera se consideran registros basura aquellos que los campos **unidad, programa, clave_ciclo y materia** esten vacios.
+
 
 ```python
 ts['unidad'].isnull().values.any()
@@ -1817,6 +1835,8 @@ ts['materia'].isnull().values.any()
     False
 
 
+
+Dentro de la institución se ofrecen estudios de lenguas extranjeras a la población en general, sin embargo, todo aquel estudiante de lenguas extranjeras que no esta inscrito formalmente en alguna unidad académica no es considerado alumno perteneciente a la universidad. Por lo tanto, se eliminaran todos los registros de dichos estudiantes. El rango de claves son entre 182000 y 182999.
 
 
 ```python
@@ -3397,6 +3417,8 @@ ts[(ts['clave_programa']>=182000)&(ts['clave_programa']<=182999)]
 
 
 
+Para que una materia este aprobada debe de tener por lo menos una calificacion aprobatoria en las tres oportunidades disponibles: **Ordinario, Extra Ordinario y Titulo**.
+
 
 ```python
 ts[(ts['aprobado']==1)&(ts['calif_ord'].isnull())&(ts['calif_ext'].isnull())&(ts['calif_titulo'].isnull())]
@@ -3536,6 +3558,8 @@ ts[(ts['aprobado']==1)&(ts['calif_ord'].isnull())&(ts['calif_ext'].isnull())&(ts
 
 
 
+La universidad tambien oferta programas de educacion **Secundaria y Preparatoria**, pero para este ejercicios se descartaran. 
+
 
 ```python
 media_superior=ts[(ts['unidad'].str.contains('SECUNDARIA'))|(ts['unidad'].str.contains('PREPARATORIA'))]
@@ -3620,6 +3644,8 @@ sorted(lic_pos['unidad'].unique())
 
 
 
+La lista anterior muestra las diferentes unidades académicas disponibles, pero al analizarla más a detalle se encuentran extensiones de algunas unidades. Todas las extensiones comparten la palabra ```'PLANTEL' ```.
+
 
 ```python
 sorted(lic_pos[lic_pos['unidad'].str.contains("PLANTEL")].unidad.unique())
@@ -3656,6 +3682,11 @@ sorted(lic_pos[lic_pos['unidad'].str.contains("PLANTEL")].unidad.unique())
 
 
 ```python
+Dado que en realidad estos planteles son parte de una sola unidad se deberan homologar e una sola unidad.
+```
+
+
+```python
 unidades = lic_pos['unidad'].unique()
 dict={}
 for unidad in unidades:
@@ -3668,6 +3699,11 @@ print (dict)
 
     {'CULTURA PLANTEL ZACATECAS': 'CULTURA', 'CIENCIAS BIOLOGICAS': 'CIENCIAS BIOLOGICAS', 'DOCENCIA SUPERIOR PLANTEL RIO GRANDE': 'DOCENCIA SUPERIOR', 'AGRONOMIA': 'AGRONOMIA', 'LETRAS PLANTEL JEREZ': 'LETRAS', 'HISTORIA': 'HISTORIA', 'INGENIERIA ELECTRICA PLANTEL JALPA': 'INGENIERIA ELECTRICA', 'DOCTORADO EN ESTUDIOS DEL DESARROLLO': 'DOCTORADO EN ESTUDIOS DEL DESARROLLO', 'DERECHO PLANTEL FRESNILLO': 'DERECHO', 'FILOSOFIA': 'FILOSOFIA', 'MEDICINA HUMANA PLANTEL ZACATECAS': 'MEDICINA HUMANA', 'ESTUDIOS DE LAS HUMANIDADES': 'ESTUDIOS DE LAS HUMANIDADES', 'PSICOLOGIA PLANTEL JUAN ALDAMA': 'PSICOLOGIA', 'INGENIERIA I': 'INGENIERIA I', 'CIENCIAS SOCIALES': 'CIENCIAS SOCIALES', 'INGENIERIA ELECTRICA PLANTEL ZACATECAS': 'INGENIERIA ELECTRICA', 'ANTROPOLOGIA': 'ANTROPOLOGIA', 'PSICOLOGIA PLANTEL OJOCALIENTE': 'PSICOLOGIA', 'DOCENCIA SUPERIOR PLANTEL JEREZ': 'DOCENCIA SUPERIOR', 'PSICOLOGIA PLANTEL JALPA': 'PSICOLOGIA', 'DOCENCIA SUPERIOR': 'DOCENCIA SUPERIOR', 'CIENCIAS QUIMICAS': 'CIENCIAS QUIMICAS', 'ARTES': 'ARTES', 'MATEMATICAS': 'MATEMATICAS', 'FISICA': 'FISICA', 'DERECHO PLANTEL ZACATECAS': 'DERECHO', 'ECONOMIA': 'ECONOMIA', 'AGRONOMIA PLANTEL VALPARAISO': 'AGRONOMIA', 'PSICOLOGIA PLANTEL FRESNILLO': 'PSICOLOGIA', 'LETRAS PLANTEL ZACATECAS': 'LETRAS', 'ESTUDIOS NUCLEARES': 'ESTUDIOS NUCLEARES', 'PSICOLOGIA PLANTEL ZACATECAS': 'PSICOLOGIA', 'MEDICINA HUMANA PLANTEL FRESNILLO': 'MEDICINA HUMANA', 'ENFERMERIA PLANTEL ZACATECAS': 'ENFERMERIA', 'CIENCIAS DE LA TIERRA': 'CIENCIAS DE LA TIERRA', 'ODONTOLOGIA': 'ODONTOLOGIA', 'HISTORIA PLANTEL JEREZ': 'HISTORIA', 'ENFERMERIA PLANTEL NOCHISTLAN': 'ENFERMERIA', 'CONTADURIA Y ADMINISTRACION': 'CONTADURIA Y ADMINISTRACION', 'ENFERMERIA PLANTEL JALPA': 'ENFERMERIA', 'CIENCIA POLITICA': 'CIENCIA POLITICA', 'ENFERMERIA PLANTEL JUAN ALDAMA': 'ENFERMERIA', 'MEDICINA VETERINARIA Y ZOOTECNIA': 'MEDICINA VETERINARIA Y ZOOTECNIA', 'MUSICA': 'MUSICA', 'NUTRICION PLANTEL TLALTENANGO': 'NUTRICION', 'CIENCIAS DE LA SALUD': 'CIENCIAS DE LA SALUD'}
 
+
+
+```python
+Se agrega al final de la tabla el nombre de la unidad homologada.
+```
 
 
 ```python
@@ -5195,6 +5231,8 @@ lic_pos
 
 
 
+De la misma manera, existen programas que se ofertan de manera semi-escolarizada (**SUA**) o en modalidad a **Distancia**. Tambien se deben homologar estos programas.
+
 
 ```python
 programas=lic_pos['programa'].unique()
@@ -5353,13 +5391,16 @@ sorted(programas)
 
 
 ```python
-lic_pos[lic_pos['programa'].str.contains("DISTANCIA")].programa.unique()
+lic_pos[(lic_pos['programa'].str.contains("DISTANCIA"))|(lic_pos['programa'].str.contains("SUA"))].programa.unique()
 ```
 
 
 
 
-    array(['LICENCIADO EN HISTORIA A DISTANCIA',
+    array(['SUA INGENIERO AGRONOMO', 'SUA LICENCIADO EN DERECHO',
+           'SUA LICENCIADO EN PSICOLOGIA',
+           'SUA LICENCIADO EN CONTADURIA Y ADMINISTRACION',
+           'LICENCIADO EN HISTORIA A DISTANCIA',
            'LICENCIADO EN FILOSOFIA A DISTANCIA',
            'LICENCIADO EN TURISMO A DISTANCIA'], dtype=object)
 
@@ -5383,6 +5424,8 @@ print (dict)
 
     {'MAESTRIA EN ENSE\xc3\x91ANZA DE LA LENGUA MATERNA': 'MAESTRIA EN ENSE\xc3\x91ANZA DE LA LENGUA MATERNA', 'DOCTORADO EN FARMACOLOGIA': 'DOCTORADO EN FARMACOLOGIA', 'MAESTRIA EN MATEMATICA APLICADA': 'MAESTRIA EN MATEMATICA APLICADA', 'MAESTRIA EN INGENIERIA APLICADA, CON ORIENTACI\xc3\x93N EN RECURSOS HIDRAULICOS.': 'MAESTRIA EN INGENIERIA APLICADA, CON ORIENTACI\xc3\x93N EN RECURSOS HIDRAULICOS.', 'MAESTRIA EN PROCESOS Y MATERIALES': 'MAESTRIA EN PROCESOS Y MATERIALES', 'SUA INGENIERO AGRONOMO': 'INGENIERO AGRONOMO', 'MAESTRIA EN CIENCIAS BIOM\xc3\x89DICAS': 'MAESTRIA EN CIENCIAS BIOM\xc3\x89DICAS', 'ESPECIALIDAD EN DISE\xc3\x91O MECANICO': 'ESPECIALIDAD EN DISE\xc3\x91O MECANICO', 'CURSOS POSBASICOS EN ENFERMERIA': 'CURSOS POSBASICOS EN ENFERMERIA', 'MAESTRIA EN VALUACION': 'MAESTRIA EN VALUACION', 'ESPECIALIDAD EN CIRUGIA (CONVENIO)': 'ESPECIALIDAD EN CIRUGIA (CONVENIO)', 'MAESTRIA EN DOCENCIA Y PROCESOS INSTITUCIONALES': 'MAESTRIA EN DOCENCIA Y PROCESOS INSTITUCIONALES', 'LICENCIADO EN TURISMO A DISTANCIA': 'LICENCIADO EN TURISMO', 'MAESTRIA EN INGENIERIA APLICADA, CON ORIENTACI\xc3\x93N EN PROCESOS Y MANUFACTURA': 'MAESTRIA EN INGENIERIA APLICADA, CON ORIENTACI\xc3\x93N EN PROCESOS Y MANUFACTURA', 'MAESTRIA EN CIENCIA JURIDICO PENAL': 'MAESTRIA EN CIENCIA JURIDICO PENAL', 'INGENIERIA EN DISE\xc3\x91O INDUSTRIAL': 'INGENIERIA EN DISE\xc3\x91O INDUSTRIAL', 'LICENCIADO EN FISICA': 'LICENCIADO EN FISICA', 'ESPECIALIDAD EN TECNOLOGIAS INFORMATICAS EDUCATIVAS': 'ESPECIALIDAD EN TECNOLOGIAS INFORMATICAS EDUCATIVAS', 'LICENCIATURA EN INGENIERIA DE SOFTWARE': 'LICENCIATURA EN INGENIERIA DE SOFTWARE', 'ESPECIALIDAD EN COMPUTACION': 'ESPECIALIDAD EN COMPUTACION', 'SUA LICENCIADO EN DERECHO': 'LICENCIADO EN DERECHO', 'MAESTRIA EN CIENCIAS FISICAS': 'MAESTRIA EN CIENCIAS FISICAS', 'MAESTRIA EN CIENCIAS NUCLEARES': 'MAESTRIA EN CIENCIAS NUCLEARES', 'LICENCIATURA EN LENGUAS EXTRANJERAS': 'LICENCIATURA EN LENGUAS EXTRANJERAS', 'LICENCIATURA EN INFORMATICA': 'LICENCIATURA EN INFORMATICA', 'DOCTORADO EN CIENCIAS DE LA INGENIERIA': 'DOCTORADO EN CIENCIAS DE LA INGENIERIA', 'ESPECIALIDAD EN DERECHO LABORAL': 'ESPECIALIDAD EN DERECHO LABORAL', 'MAESTRIA EN POBLACION Y DESARROLLO': 'MAESTRIA EN POBLACION Y DESARROLLO', 'SUA LICENCIADO EN CONTADURIA Y ADMINISTRACION': 'LICENCIADO EN CONTADURIA', 'ESPECIALIDAD EN ANESTESIOLOGIA (CONVENIO': 'ESPECIALIDAD EN ANESTESIOLOGIA (CONVENIO', 'ESPECIALIDAD EN MEDICINA INTERNA (CONV)': 'ESPECIALIDAD EN MEDICINA INTERNA (CONV)', 'MAES. EN DOCENCIA EN INV. JURIDICAS': 'MAES. EN DOCENCIA EN INV. JURIDICAS', 'LICENCIATURA EN MUSICA (NIVEL PROPEDEUTICO)': 'LICENCIATURA EN MUSICA (NIVEL PROPEDEUTICO)', 'LICENCIATURA EN CANTO': 'LICENCIATURA EN CANTO', 'MAESTRIA EN ENERGETICOS': 'MAESTRIA EN ENERGETICOS', 'MAESTRIA EN MATEMATICAS': 'MAESTRIA EN MATEMATICAS', 'ESPECIALIDAD EN VALUACION CON ORIENTACION EN NEGOCIOS EN MARCHA': 'ESPECIALIDAD EN VALUACION CON ORIENTACION EN NEGOCIOS EN MARCHA', 'MAESTRIA EN CIENCIA Y TECNOLOGIA QUIMICA': 'MAESTRIA EN CIENCIA Y TECNOLOGIA QUIMICA', 'MAESTRIA EN HISTORIA': 'MAESTRIA EN HISTORIA', 'DOCTORADO EN ESTUDIOS NOVOHISPANOS': 'DOCTORADO EN ESTUDIOS NOVOHISPANOS', 'MAESTRIA EN ESTUDIOS ELECTORALES': 'MAESTRIA EN ESTUDIOS ELECTORALES', 'INGENIERO EN COMPUTACION': 'INGENIERO EN COMPUTACION', 'LICENCIADO EN HISTORIA A DISTANCIA': 'LICENCIADO EN HISTORIA', 'MAESTRIA EN PLANEACION DE REC. HIDRAULIC': 'MAESTRIA EN PLANEACION DE REC. HIDRAULIC', 'TRONCO COMUN': 'TRONCO COMUN', 'MAESTRIA EN MATEMATICAS EDUCATIVAS': 'MAESTRIA EN MATEMATICAS EDUCATIVAS', 'ESPECIALIDAD EN PROCESOS METALURGICOS DE MANUFACTURA': 'ESPECIALIDAD EN PROCESOS METALURGICOS DE MANUFACTURA', 'LICENCIATURA EN ARTES': 'LICENCIATURA EN ARTES', 'LICENCIADO EN DERECHO': 'LICENCIADO EN DERECHO', 'MAESTRIA EN ECONOMIA': 'MAESTRIA EN ECONOMIA', 'ESPECIALIDAD DE ENFERMERIA EN ADMINISTRACION Y DOCENCIA': 'ESPECIALIDAD DE ENFERMERIA EN ADMINISTRACION Y DOCENCIA', 'LICENCIADO EN HUMANIDADES ANTROPOLOGIA': 'LICENCIADO EN HUMANIDADES ANTROPOLOGIA', 'MAESTRIA EN CIENCIAS BIOLOGICAS': 'MAESTRIA EN CIENCIAS BIOLOGICAS', 'LICENCIATURA EN MUSICA NIVEL JUVENIL': 'LICENCIATURA EN MUSICA NIVEL JUVENIL', 'DOCTORADO EN CIENCIA POLITICA': 'DOCTORADO EN CIENCIA POLITICA', 'ESPECIALIDAD EN FISCAL': 'ESPECIALIDAD EN FISCAL', 'MAESTRIA EN HUMANIDADES LINEA FORMACION DOCENTE': 'MAESTRIA EN HUMANIDADES LINEA FORMACION DOCENTE', 'ESPECIALIDAD EN ODONTOPEDIATRIA': 'ESPECIALIDAD EN ODONTOPEDIATRIA', 'INGENIERO CIVIL': 'INGENIERO CIVIL', 'DOCTORADO EN ADMINISTRACI\xc3\x93N': 'DOCTORADO EN ADMINISTRACI\xc3\x93N', 'SUBESPECIALIDAD EN NEONATOLOGIA': 'SUBESPECIALIDAD EN NEONATOLOGIA', 'ESPECIALIDAD DE ENFERMERIA EN SALUD PUBLICA': 'ESPECIALIDAD DE ENFERMERIA EN SALUD PUBLICA', 'LICENCIADO EN ENFERMERIA': 'LICENCIADO EN ENFERMERIA', 'ESPECIALIDAD EN GINECOOBSTETRICIA (C.)': 'ESPECIALIDAD EN GINECOOBSTETRICIA (C.)', 'TECNICO EN ENFERMERIA': 'TECNICO EN ENFERMERIA', 'MAESTRIA EN INGENIERIA': 'MAESTRIA EN INGENIERIA', 'MAESTRIA EN CIENCIAS SOCIALES CON ORIENTACION EN POLITICAS PUBLICAS': 'MAESTRIA EN CIENCIAS SOCIALES CON ORIENTACION EN POLITICAS PUBLICAS', 'ESPECIALIDAD EN VALUACION CON ORIENTACION EN INMUEBLES AGROPECUARIOS': 'ESPECIALIDAD EN VALUACION CON ORIENTACION EN INMUEBLES AGROPECUARIOS', 'ESPECIALIDAD EN ENFERMER\xc3\x8dA GERONTOGERI\xc3\x81TRICA': 'ESPECIALIDAD EN ENFERMER\xc3\x8dA GERONTOGERI\xc3\x81TRICA', 'MEDICO GENERAL': 'MEDICO GENERAL', 'MAESTRIA EN FILOSOFIA': 'MAESTRIA EN FILOSOFIA', 'INGENIERO MINERO METALURGISTA': 'INGENIERO MINERO METALURGISTA', 'LICENCIADO EN LETRAS': 'LICENCIADO EN LETRAS', 'LICENCIADO EN HISTORIA': 'LICENCIADO EN HISTORIA', 'LICENCIADO EN CIENCIAS AMBIENTALES': 'LICENCIADO EN CIENCIAS AMBIENTALES', 'LICENCIADO EN DESARROLLO CULTURAL': 'LICENCIADO EN DESARROLLO CULTURAL', 'MAESTRIA EN BIOLOGIA EXPERIMENTAL': 'MAESTRIA EN BIOLOGIA EXPERIMENTAL', 'MAESTRIA EN INVESTIGACIONES HUMANISTICAS Y EDUCATIVAS': 'MAESTRIA EN INVESTIGACIONES HUMANISTICAS Y EDUCATIVAS', 'MAESTRIA EN TECNOLOGIA INFORMATICA EDUCATIVA': 'MAESTRIA EN TECNOLOGIA INFORMATICA EDUCATIVA', 'ESPECIALIDAD EN VALUACION DE INMUEBLES': 'ESPECIALIDAD EN VALUACION DE INMUEBLES', 'MAESTRIA EN ESTUDIOS DE FILOSOFiA EN MEX': 'MAESTRIA EN ESTUDIOS DE FILOSOFiA EN MEX', 'MAESTRIA EN ADMINISTRACION': 'MAESTRIA EN ADMINISTRACION', 'MAESTRIA EN IMPUESTOS': 'MAESTRIA EN IMPUESTOS', 'MAESTRIA EN CIENCIAS AGRICOLAS': 'MAESTRIA EN CIENCIAS AGRICOLAS', 'LICENCIATURA EN MUSICA CON ESPECIALIZACION EN INSTRUMENTO': 'LICENCIATURA EN MUSICA CON ESPECIALIZACION EN INSTRUMENTO', 'LICENCIATURA EN MUSICA (NIVEL SUPERIOR)': 'LICENCIATURA EN MUSICA (NIVEL SUPERIOR)', 'DOCTORADO EN INGENIERIA Y TECNOLOGIA APLICADA': 'DOCTORADO EN INGENIERIA Y TECNOLOGIA APLICADA', 'ESPECIALIDAD DE ENFERMERIA QUIRURGICA': 'ESPECIALIDAD DE ENFERMERIA QUIRURGICA', 'DOCTORADO EN HISTORIA COLONIAL': 'DOCTORADO EN HISTORIA COLONIAL', 'LICENCIATURA EN TURISMO': 'LICENCIATURA EN TURISMO', 'MAESTRIA EN POBLACION, DESARROLLO Y POLITICAS PUBLICAS': 'MAESTRIA EN POBLACION, DESARROLLO Y POLITICAS PUBLICAS', 'ESPECIALIDAD EN VALUACION CON ORIENTACION EN IMPACTO AMBIENTAL': 'ESPECIALIDAD EN VALUACION CON ORIENTACION EN IMPACTO AMBIENTAL', 'DOCTORADO EN CIENCIAS AGROPECUARIAS': 'DOCTORADO EN CIENCIAS AGROPECUARIAS', 'INGENIERO GEOLOGO': 'INGENIERO GEOLOGO', 'MEDICO CIRUJANO DENTISTA': 'MEDICO CIRUJANO DENTISTA', 'MAESTRIA EN PSICOTERAPIA PSICOANALITICA': 'MAESTRIA EN PSICOTERAPIA PSICOANALITICA', 'ING. EN COMUNICACIONES Y ELECTRONICA': 'ING. EN COMUNICACIONES Y ELECTRONICA', 'LICENCIADO EN FILOSOFIA A DISTANCIA': 'LICENCIADO EN FILOSOFIA', 'LICENCIATURA EN NUTRICI\xc3\x93N': 'LICENCIATURA EN NUTRICI\xc3\x93N', 'MAESTRIA EN CIENCIA POLITICA': 'MAESTRIA EN CIENCIA POLITICA', 'DOCTORADO EN HISTORIA': 'DOCTORADO EN HISTORIA', 'INGENIERO TOPOGRAFO E HIDROGRAFO': 'INGENIERO TOPOGRAFO E HIDROGRAFO', 'MAESTRIA EN FISICA': 'MAESTRIA EN FISICA', 'MAESTRIA EN HUMANIDADES Y PROCESOS EDUCATIVOS': 'MAESTRIA EN HUMANIDADES Y PROCESOS EDUCATIVOS', 'MAESTRIA EN CIENCIAS AGROPECUARIAS': 'MAESTRIA EN CIENCIAS AGROPECUARIAS', 'ESPECIALIDAD EN TECNOLOGIAS INFORMATICAS APLICADAS A LA EDUCACI\xc3\x93N': 'ESPECIALIDAD EN TECNOLOGIAS INFORMATICAS APLICADAS A LA EDUCACI\xc3\x93N', 'DOCTORADO EN HUMANIDADES Y ARTES': 'DOCTORADO EN HUMANIDADES Y ARTES', 'MEDICO VETERINARIO ZOOTECNISTA': 'MEDICO VETERINARIO ZOOTECNISTA', 'MAESTRIA EN CIENCIAS SOCIALES': 'MAESTRIA EN CIENCIAS SOCIALES', 'ESPECIALIDAD EN VALUACION CON ORIENTACION EN INMUEBLES': 'ESPECIALIDAD EN VALUACION CON ORIENTACION EN INMUEBLES', 'QUIMICA EN ALIMENTOS': 'QUIMICA EN ALIMENTOS', 'DOCTORADO EN ESTUDIOS DEL DESARROLLO': 'DOCTORADO EN ESTUDIOS DEL DESARROLLO', 'MAESTRIA EN INGENIERIA Y TECNOLOGIA APLICADA': 'MAESTRIA EN INGENIERIA Y TECNOLOGIA APLICADA', 'MAESTRIA EN HUMANIDADES-HISTORIA': 'MAESTRIA EN HUMANIDADES-HISTORIA', 'LICENCIADO EN MATEMATICAS': 'LICENCIADO EN MATEMATICAS', 'LICENCIADO EN PSICOLOGIA': 'LICENCIADO EN PSICOLOGIA', 'DOCTORADO EN CIENCIAS HUMANISTICAS Y EDUCATIVAS': 'DOCTORADO EN CIENCIAS HUMANISTICAS Y EDUCATIVAS', 'ESPECIALIDAD EN PEDIATRIA (CONVENIO)': 'ESPECIALIDAD EN PEDIATRIA (CONVENIO)', 'ESPECIALIDAD EN VALUACION CON ORIENTACION EN MAQUINARIA Y EQUIPO': 'ESPECIALIDAD EN VALUACION CON ORIENTACION EN MAQUINARIA Y EQUIPO', 'INGENIERIA EN ROBOTICA Y MECATRONICA': 'INGENIERIA EN ROBOTICA Y MECATRONICA', 'MAESTRIA EN FILOSOFIA E HISTORIA DE LAS IDEAS': 'MAESTRIA EN FILOSOFIA E HISTORIA DE LAS IDEAS', 'MAESTRIA EN CIENCIAS DE LA INGENIERIA': 'MAESTRIA EN CIENCIAS DE LA INGENIERIA', 'INGENIERO ELECTRICISTA': 'INGENIERO ELECTRICISTA', 'MAESTRIA EN CIENCIA E INGENIERIA DE LOS MATERIALES': 'MAESTRIA EN CIENCIA E INGENIERIA DE LOS MATERIALES', 'MAESTRIA EN CIENCIAS DE LA EDUCACION': 'MAESTRIA EN CIENCIAS DE LA EDUCACION', 'INGENIERO AGRONOMO': 'INGENIERO AGRONOMO', 'INGENIERIA EN ELECTRONICA INDUSTRIAL': 'INGENIERIA EN ELECTRONICA INDUSTRIAL', 'LICENCIATURA EN DESARROLLO REGIONAL SUSTENTABLE': 'LICENCIATURA EN DESARROLLO REGIONAL SUSTENTABLE', 'LICENCIADO EN FILOSOFIA': 'LICENCIADO EN FILOSOFIA', 'ESPECIALIDAD EN MEDICINA FAMILIAR (C.)': 'ESPECIALIDAD EN MEDICINA FAMILIAR (C.)', 'DOCTORADO EN CIENCIAS BASICAS': 'DOCTORADO EN CIENCIAS BASICAS', 'INGENIERO QUIMICO': 'INGENIERO QUIMICO', 'DOCTORADO EN CIENCIAS PECUARIAS': 'DOCTORADO EN CIENCIAS PECUARIAS', 'ESPECIALIDAD EN PRODUCCI\xc3\x93N AGROPECUARIA': 'ESPECIALIDAD EN PRODUCCI\xc3\x93N AGROPECUARIA', 'LICENCIADO EN CONTADURIA': 'LICENCIADO EN CONTADURIA', 'SUA LICENCIADO EN PSICOLOGIA': 'LICENCIADO EN PSICOLOGIA', 'MAESTRIA EN CIENCIAS DE LA SALUD': 'MAESTRIA EN CIENCIAS DE LA SALUD', 'LICENCIADO EN ECONOMIA': 'LICENCIADO EN ECONOMIA', 'INGENIERO MECANICO': 'INGENIERO MECANICO', 'LICENCIATURA EN PERIODISMO': 'LICENCIATURA EN PERIODISMO', 'MAESTRIA EN ECONOMIA REGIONAL Y SECTORIAL': 'MAESTRIA EN ECONOMIA REGIONAL Y SECTORIAL', 'QUIMICO FARMACEUTICO-BIOLOGO': 'QUIMICO FARMACEUTICO-BIOLOGO', 'LICENCIADO EN BIOLOGIA': 'LICENCIADO EN BIOLOGIA', 'MAE. EN PRODUCCION ANIMAL EN ZONAS ARIDA': 'MAE. EN PRODUCCION ANIMAL EN ZONAS ARIDA'}
 
+
+Se agrega al final de la tabla el nombre del programa homologado.
 
 
 ```python
@@ -6907,6 +6950,8 @@ lic_pos
 </div>
 
 
+
+Por cuestiones practicas, se agregaran los nombres de los ciclos y el año al que pertenecen.
 
 
 ```python
@@ -9964,6 +10009,8 @@ lic_pos
 
 
 
+En los campos **calif_ord, calif_ext y calif_titulo** se almacenan las calificaciones del alumno, mas estos campos no son numericos y contienen caracteres que no son necesario. A continuación se muestra un ejemplo con el **campo calif_ord**.
+
 
 ```python
 lic_pos['calif_ord']=lic_pos['calif_ord'].str.strip().fillna('0')
@@ -9986,9 +10033,10 @@ ordi
 
 
 
+Es necesario entonces limpiar estos 3 campos. 
+
 
 ```python
-
 import re
 def limpia_calif(row,name):
     val=row[name]
@@ -11530,6 +11578,8 @@ lic_pos
 
 
 
+Una vez limpios los campos es necesario agregar una columna más con la calificacion final aprobatoria del alumno para agilizar su procesamiento.
+
 
 ```python
 def join_calif(row):
@@ -13070,1531 +13120,9 @@ lic_pos
 
 
 
+## Almacenamiento
 
-```python
-def get_ciclo_anio(row):
-    clave=row['clave_ciclo']
-    texto="20"+clave[:2]
-    return texto
-lic_pos['anio']=lic_pos.apply (lambda row: get_ciclo_anio (row),axis=1)
-lic_pos
-```
-
-
-
-
-<div>
-<style>
-    .dataframe thead tr:only-child th {
-        text-align: right;
-    }
-
-    .dataframe thead th {
-        text-align: left;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-</style>
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>matricula</th>
-      <th>clave_unidad</th>
-      <th>unidad</th>
-      <th>clave_programa</th>
-      <th>programa</th>
-      <th>clave_ciclo</th>
-      <th>clave_plan</th>
-      <th>plan</th>
-      <th>clave_materia</th>
-      <th>materia</th>
-      <th>...</th>
-      <th>calif_ord</th>
-      <th>fecha_ext</th>
-      <th>calif_ext</th>
-      <th>fecha_titulo</th>
-      <th>calif_titulo</th>
-      <th>unidad_agrupada</th>
-      <th>programa_agrupado</th>
-      <th>ciclo</th>
-      <th>anio</th>
-      <th>calif</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>30</th>
-      <td>24504854</td>
-      <td>21300</td>
-      <td>ECONOMIA</td>
-      <td>156030</td>
-      <td>LICENCIADO EN ECONOMIA</td>
-      <td>1011SNON</td>
-      <td>112TCE</td>
-      <td>TRONCO COMUN DE LA LICENCIATURA EN ECONOMIA.</td>
-      <td>12DHL1</td>
-      <td>DESARROLLO DE HABILIDADES LINGÜISTICAS I</td>
-      <td>...</td>
-      <td>5.0</td>
-      <td>2010-12-18 00:00:00.000</td>
-      <td>0.0</td>
-      <td>2011-01-22 00:00:00.000</td>
-      <td>0.0</td>
-      <td>ECONOMIA</td>
-      <td>LICENCIADO EN ECONOMIA</td>
-      <td>AGOSTO-DICIEMBRE 2010</td>
-      <td>2010</td>
-      <td>0.0</td>
-    </tr>
-    <tr>
-      <th>31</th>
-      <td>24504854</td>
-      <td>21300</td>
-      <td>ECONOMIA</td>
-      <td>156030</td>
-      <td>LICENCIADO EN ECONOMIA</td>
-      <td>1011SNON</td>
-      <td>112TCE</td>
-      <td>TRONCO COMUN DE LA LICENCIATURA EN ECONOMIA.</td>
-      <td>12ECP1</td>
-      <td>ECONOMIA POLITICA I</td>
-      <td>...</td>
-      <td>0.0</td>
-      <td>2010-12-15 00:00:00.000</td>
-      <td>7.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>ECONOMIA</td>
-      <td>LICENCIADO EN ECONOMIA</td>
-      <td>AGOSTO-DICIEMBRE 2010</td>
-      <td>2010</td>
-      <td>7.0</td>
-    </tr>
-    <tr>
-      <th>32</th>
-      <td>24504854</td>
-      <td>21300</td>
-      <td>ECONOMIA</td>
-      <td>156030</td>
-      <td>LICENCIADO EN ECONOMIA</td>
-      <td>1011SNON</td>
-      <td>112TCE</td>
-      <td>TRONCO COMUN DE LA LICENCIATURA EN ECONOMIA.</td>
-      <td>12HEG1</td>
-      <td>HISTORIA ECONOMICA GENERAL I</td>
-      <td>...</td>
-      <td>5.0</td>
-      <td>2010-12-16 00:00:00.000</td>
-      <td>0.0</td>
-      <td>2011-01-20 00:00:00.000</td>
-      <td>0.0</td>
-      <td>ECONOMIA</td>
-      <td>LICENCIADO EN ECONOMIA</td>
-      <td>AGOSTO-DICIEMBRE 2010</td>
-      <td>2010</td>
-      <td>0.0</td>
-    </tr>
-    <tr>
-      <th>33</th>
-      <td>24504854</td>
-      <td>21300</td>
-      <td>ECONOMIA</td>
-      <td>156030</td>
-      <td>LICENCIADO EN ECONOMIA</td>
-      <td>1011SNON</td>
-      <td>112TCE</td>
-      <td>TRONCO COMUN DE LA LICENCIATURA EN ECONOMIA.</td>
-      <td>12INTE</td>
-      <td>INTRODUCCION A LA TEORIA ECONOMICA</td>
-      <td>...</td>
-      <td>0.0</td>
-      <td>2010-12-13 00:00:00.000</td>
-      <td>7.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>ECONOMIA</td>
-      <td>LICENCIADO EN ECONOMIA</td>
-      <td>AGOSTO-DICIEMBRE 2010</td>
-      <td>2010</td>
-      <td>7.0</td>
-    </tr>
-    <tr>
-      <th>49</th>
-      <td>28900370</td>
-      <td>29401</td>
-      <td>CIENCIAS DE LA SALUD</td>
-      <td>154040</td>
-      <td>MEDICO CIRUJANO DENTISTA</td>
-      <td>1011SNON</td>
-      <td>116MC3</td>
-      <td>LICENCIATURA DE MEDICO CIRUJANO DENTISTA.</td>
-      <td>TCMIOD</td>
-      <td>MICROBIOLOGIA ODONTOLOGICA</td>
-      <td>...</td>
-      <td>8.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>CIENCIAS DE LA SALUD</td>
-      <td>MEDICO CIRUJANO DENTISTA</td>
-      <td>AGOSTO-DICIEMBRE 2010</td>
-      <td>2010</td>
-      <td>8.0</td>
-    </tr>
-    <tr>
-      <th>50</th>
-      <td>28900370</td>
-      <td>29401</td>
-      <td>CIENCIAS DE LA SALUD</td>
-      <td>154040</td>
-      <td>MEDICO CIRUJANO DENTISTA</td>
-      <td>1011SNON</td>
-      <td>116MC3</td>
-      <td>LICENCIATURA DE MEDICO CIRUJANO DENTISTA.</td>
-      <td>TCNUIN</td>
-      <td>NUTRICION Y DESARROLLO INFANTIL</td>
-      <td>...</td>
-      <td>7.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>CIENCIAS DE LA SALUD</td>
-      <td>MEDICO CIRUJANO DENTISTA</td>
-      <td>AGOSTO-DICIEMBRE 2010</td>
-      <td>2010</td>
-      <td>7.0</td>
-    </tr>
-    <tr>
-      <th>55</th>
-      <td>26703061</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155070</td>
-      <td>INGENIERO TOPOGRAFO E HIDROGRAFO</td>
-      <td>1011SNON</td>
-      <td>113IT2</td>
-      <td>INGENIERO TOPOGRAFO E HIDROGRAFO.</td>
-      <td>13DIBU</td>
-      <td>DIBUJO</td>
-      <td>...</td>
-      <td>0.0</td>
-      <td>2010-11-30 00:00:00.000</td>
-      <td>6.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO TOPOGRAFO E HIDROGRAFO</td>
-      <td>AGOSTO-DICIEMBRE 2010</td>
-      <td>2010</td>
-      <td>6.0</td>
-    </tr>
-    <tr>
-      <th>167</th>
-      <td>23400732</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155070</td>
-      <td>INGENIERO TOPOGRAFO E HIDROGRAFO</td>
-      <td>1011SNON</td>
-      <td>113IT2</td>
-      <td>INGENIERO TOPOGRAFO E HIDROGRAFO.</td>
-      <td>13PLTV</td>
-      <td>PRACTICAS DE LOCALIZACION Y TRAZO DE VIAS</td>
-      <td>...</td>
-      <td>8.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO TOPOGRAFO E HIDROGRAFO</td>
-      <td>AGOSTO-DICIEMBRE 2010</td>
-      <td>2010</td>
-      <td>8.0</td>
-    </tr>
-    <tr>
-      <th>168</th>
-      <td>23400732</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155070</td>
-      <td>INGENIERO TOPOGRAFO E HIDROGRAFO</td>
-      <td>1011SNON</td>
-      <td>113IT2</td>
-      <td>INGENIERO TOPOGRAFO E HIDROGRAFO.</td>
-      <td>13PRF1</td>
-      <td>PRACTICAS DE FOTOGRAMETRIA I</td>
-      <td>...</td>
-      <td>8.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO TOPOGRAFO E HIDROGRAFO</td>
-      <td>AGOSTO-DICIEMBRE 2010</td>
-      <td>2010</td>
-      <td>8.0</td>
-    </tr>
-    <tr>
-      <th>169</th>
-      <td>23400732</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155070</td>
-      <td>INGENIERO TOPOGRAFO E HIDROGRAFO</td>
-      <td>1011SNON</td>
-      <td>113IT2</td>
-      <td>INGENIERO TOPOGRAFO E HIDROGRAFO.</td>
-      <td>13PTSU</td>
-      <td>PRACTICAS DE TOPOGRAFIA SUBTERRANEA</td>
-      <td>...</td>
-      <td>9.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO TOPOGRAFO E HIDROGRAFO</td>
-      <td>AGOSTO-DICIEMBRE 2010</td>
-      <td>2010</td>
-      <td>9.0</td>
-    </tr>
-    <tr>
-      <th>170</th>
-      <td>23400732</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155070</td>
-      <td>INGENIERO TOPOGRAFO E HIDROGRAFO</td>
-      <td>1011SNON</td>
-      <td>113IT2</td>
-      <td>INGENIERO TOPOGRAFO E HIDROGRAFO.</td>
-      <td>13TOSU</td>
-      <td>TOPOGRAFIA SUBTERRANEA</td>
-      <td>...</td>
-      <td>8.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO TOPOGRAFO E HIDROGRAFO</td>
-      <td>AGOSTO-DICIEMBRE 2010</td>
-      <td>2010</td>
-      <td>8.0</td>
-    </tr>
-    <tr>
-      <th>171</th>
-      <td>20000542</td>
-      <td>23201</td>
-      <td>INGENIERIA ELECTRICA PLANTEL ZACATECAS</td>
-      <td>155110</td>
-      <td>INGENIERO EN COMPUTACION</td>
-      <td>1011SNON</td>
-      <td>175IC2</td>
-      <td>INGENIERIA EN COMPUTACION</td>
-      <td>75PROO</td>
-      <td>PROGRAMACION ORIENTADA A OBJETOS</td>
-      <td>...</td>
-      <td>0.0</td>
-      <td>2010-12-03 00:00:00.000</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA ELECTRICA</td>
-      <td>INGENIERO EN COMPUTACION</td>
-      <td>AGOSTO-DICIEMBRE 2010</td>
-      <td>2010</td>
-      <td>0.0</td>
-    </tr>
-    <tr>
-      <th>197</th>
-      <td>28900079</td>
-      <td>29401</td>
-      <td>CIENCIAS DE LA SALUD</td>
-      <td>154030</td>
-      <td>MEDICO GENERAL</td>
-      <td>1011SNON</td>
-      <td>114MC5</td>
-      <td>LICENCIATURA DE MEDICO GENERAL.</td>
-      <td>TCIMAG</td>
-      <td>IMAGENOLOGIA I</td>
-      <td>...</td>
-      <td>10.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>CIENCIAS DE LA SALUD</td>
-      <td>MEDICO GENERAL</td>
-      <td>AGOSTO-DICIEMBRE 2010</td>
-      <td>2010</td>
-      <td>10.0</td>
-    </tr>
-    <tr>
-      <th>199</th>
-      <td>25604124</td>
-      <td>29401</td>
-      <td>CIENCIAS DE LA SALUD</td>
-      <td>154030</td>
-      <td>MEDICO GENERAL</td>
-      <td>1011SNON</td>
-      <td>114MC5</td>
-      <td>LICENCIATURA DE MEDICO GENERAL.</td>
-      <td>TCHEMA</td>
-      <td>HEMATOLOGIA</td>
-      <td>...</td>
-      <td>5.0</td>
-      <td>2010-12-06 00:00:00.000</td>
-      <td>9.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>CIENCIAS DE LA SALUD</td>
-      <td>MEDICO GENERAL</td>
-      <td>AGOSTO-DICIEMBRE 2010</td>
-      <td>2010</td>
-      <td>9.0</td>
-    </tr>
-    <tr>
-      <th>200</th>
-      <td>25604124</td>
-      <td>29401</td>
-      <td>CIENCIAS DE LA SALUD</td>
-      <td>154030</td>
-      <td>MEDICO GENERAL</td>
-      <td>1011SNON</td>
-      <td>114MC5</td>
-      <td>LICENCIATURA DE MEDICO GENERAL.</td>
-      <td>TCIMAG</td>
-      <td>IMAGENOLOGIA I</td>
-      <td>...</td>
-      <td>10.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>CIENCIAS DE LA SALUD</td>
-      <td>MEDICO GENERAL</td>
-      <td>AGOSTO-DICIEMBRE 2010</td>
-      <td>2010</td>
-      <td>10.0</td>
-    </tr>
-    <tr>
-      <th>202</th>
-      <td>27800419</td>
-      <td>23201</td>
-      <td>INGENIERIA ELECTRICA PLANTEL ZACATECAS</td>
-      <td>155060</td>
-      <td>ING. EN COMUNICACIONES Y ELECTRONICA</td>
-      <td>1011SNON</td>
-      <td>113OC2</td>
-      <td>LICENCIATURA EN INGENIERIA EN COMUNICACIONES Y...</td>
-      <td>13OFT1</td>
-      <td>OPTATIVA I DE FORMACION TECNICA</td>
-      <td>...</td>
-      <td>10.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA ELECTRICA</td>
-      <td>ING. EN COMUNICACIONES Y ELECTRONICA</td>
-      <td>AGOSTO-DICIEMBRE 2010</td>
-      <td>2010</td>
-      <td>10.0</td>
-    </tr>
-    <tr>
-      <th>203</th>
-      <td>27800419</td>
-      <td>23201</td>
-      <td>INGENIERIA ELECTRICA PLANTEL ZACATECAS</td>
-      <td>155060</td>
-      <td>ING. EN COMUNICACIONES Y ELECTRONICA</td>
-      <td>1011SNON</td>
-      <td>113OC2</td>
-      <td>LICENCIATURA EN INGENIERIA EN COMUNICACIONES Y...</td>
-      <td>13DSAN</td>
-      <td>DISEÑO DE ANTENAS</td>
-      <td>...</td>
-      <td>9.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA ELECTRICA</td>
-      <td>ING. EN COMUNICACIONES Y ELECTRONICA</td>
-      <td>AGOSTO-DICIEMBRE 2010</td>
-      <td>2010</td>
-      <td>9.0</td>
-    </tr>
-    <tr>
-      <th>204</th>
-      <td>27800419</td>
-      <td>23201</td>
-      <td>INGENIERIA ELECTRICA PLANTEL ZACATECAS</td>
-      <td>155060</td>
-      <td>ING. EN COMUNICACIONES Y ELECTRONICA</td>
-      <td>1011SNON</td>
-      <td>113OC2</td>
-      <td>LICENCIATURA EN INGENIERIA EN COMUNICACIONES Y...</td>
-      <td>13OFP1</td>
-      <td>OPTATIVA I DE FORMACION PROFESIONAL</td>
-      <td>...</td>
-      <td>9.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA ELECTRICA</td>
-      <td>ING. EN COMUNICACIONES Y ELECTRONICA</td>
-      <td>AGOSTO-DICIEMBRE 2010</td>
-      <td>2010</td>
-      <td>9.0</td>
-    </tr>
-    <tr>
-      <th>205</th>
-      <td>27800419</td>
-      <td>23201</td>
-      <td>INGENIERIA ELECTRICA PLANTEL ZACATECAS</td>
-      <td>155060</td>
-      <td>ING. EN COMUNICACIONES Y ELECTRONICA</td>
-      <td>1011SNON</td>
-      <td>113TRO</td>
-      <td>INGENIERIA EN COMUNICACIONES Y ELECTRONICA.</td>
-      <td>13ETIC</td>
-      <td>ETICA</td>
-      <td>...</td>
-      <td>10.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA ELECTRICA</td>
-      <td>ING. EN COMUNICACIONES Y ELECTRONICA</td>
-      <td>AGOSTO-DICIEMBRE 2010</td>
-      <td>2010</td>
-      <td>10.0</td>
-    </tr>
-    <tr>
-      <th>206</th>
-      <td>27800455</td>
-      <td>23201</td>
-      <td>INGENIERIA ELECTRICA PLANTEL ZACATECAS</td>
-      <td>155060</td>
-      <td>ING. EN COMUNICACIONES Y ELECTRONICA</td>
-      <td>1011SNON</td>
-      <td>113TRO</td>
-      <td>INGENIERIA EN COMUNICACIONES Y ELECTRONICA.</td>
-      <td>13CILL</td>
-      <td>CIRCUITOS INTEGRADOS LINEALES Y LABORATORIO</td>
-      <td>...</td>
-      <td>10.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA ELECTRICA</td>
-      <td>ING. EN COMUNICACIONES Y ELECTRONICA</td>
-      <td>AGOSTO-DICIEMBRE 2010</td>
-      <td>2010</td>
-      <td>10.0</td>
-    </tr>
-    <tr>
-      <th>207</th>
-      <td>27800455</td>
-      <td>23201</td>
-      <td>INGENIERIA ELECTRICA PLANTEL ZACATECAS</td>
-      <td>155060</td>
-      <td>ING. EN COMUNICACIONES Y ELECTRONICA</td>
-      <td>1011SNON</td>
-      <td>113TRO</td>
-      <td>INGENIERIA EN COMUNICACIONES Y ELECTRONICA.</td>
-      <td>13ELPL</td>
-      <td>ELECTRONICA DE POTENCIA Y LABORATORIO</td>
-      <td>...</td>
-      <td>10.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA ELECTRICA</td>
-      <td>ING. EN COMUNICACIONES Y ELECTRONICA</td>
-      <td>AGOSTO-DICIEMBRE 2010</td>
-      <td>2010</td>
-      <td>10.0</td>
-    </tr>
-    <tr>
-      <th>224</th>
-      <td>30111558</td>
-      <td>29401</td>
-      <td>CIENCIAS DE LA SALUD</td>
-      <td>154020</td>
-      <td>QUIMICO FARMACEUTICO-BIOLOGO</td>
-      <td>1112SNON</td>
-      <td>109F10</td>
-      <td>LICENCIATURA DE QUIMICO FARMACEUTICO BIOLOGO.</td>
-      <td>09QIA1</td>
-      <td>QUIMICA ANALITICA I</td>
-      <td>...</td>
-      <td>0.0</td>
-      <td>2011-12-14 00:00:00.000</td>
-      <td>4.0</td>
-      <td>2012-01-18 00:00:00.000</td>
-      <td>0.0</td>
-      <td>CIENCIAS DE LA SALUD</td>
-      <td>QUIMICO FARMACEUTICO-BIOLOGO</td>
-      <td>AGOSTO-DICIEMBRE 2011</td>
-      <td>2011</td>
-      <td>0.0</td>
-    </tr>
-    <tr>
-      <th>225</th>
-      <td>30111727</td>
-      <td>29401</td>
-      <td>CIENCIAS DE LA SALUD</td>
-      <td>154020</td>
-      <td>QUIMICO FARMACEUTICO-BIOLOGO</td>
-      <td>1112SNON</td>
-      <td>109F10</td>
-      <td>LICENCIATURA DE QUIMICO FARMACEUTICO BIOLOGO.</td>
-      <td>09FIQU</td>
-      <td>FISIOLOGIA</td>
-      <td>...</td>
-      <td>2.0</td>
-      <td>2011-12-16 00:00:00.000</td>
-      <td>0.0</td>
-      <td>2012-01-20 00:00:00.000</td>
-      <td>0.0</td>
-      <td>CIENCIAS DE LA SALUD</td>
-      <td>QUIMICO FARMACEUTICO-BIOLOGO</td>
-      <td>AGOSTO-DICIEMBRE 2011</td>
-      <td>2011</td>
-      <td>0.0</td>
-    </tr>
-    <tr>
-      <th>234</th>
-      <td>28902881</td>
-      <td>22801</td>
-      <td>PSICOLOGIA PLANTEL ZACATECAS</td>
-      <td>156040</td>
-      <td>LICENCIADO EN PSICOLOGIA</td>
-      <td>1112SNON</td>
-      <td>129P1E</td>
-      <td>LICENCIATURA EN PSICOLOGIA EN EL AREA EDUCATIVA.</td>
-      <td>29ASEV</td>
-      <td>ASESORIA EDUCATIVA VOCACIONAL</td>
-      <td>...</td>
-      <td>7.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>PSICOLOGIA</td>
-      <td>LICENCIADO EN PSICOLOGIA</td>
-      <td>AGOSTO-DICIEMBRE 2011</td>
-      <td>2011</td>
-      <td>7.0</td>
-    </tr>
-    <tr>
-      <th>235</th>
-      <td>28902881</td>
-      <td>22801</td>
-      <td>PSICOLOGIA PLANTEL ZACATECAS</td>
-      <td>156040</td>
-      <td>LICENCIADO EN PSICOLOGIA</td>
-      <td>1112SNON</td>
-      <td>129P1E</td>
-      <td>LICENCIATURA EN PSICOLOGIA EN EL AREA EDUCATIVA.</td>
-      <td>29DEHE</td>
-      <td>DESARROLLO HUMANO EN EDUCACION</td>
-      <td>...</td>
-      <td>10.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>PSICOLOGIA</td>
-      <td>LICENCIADO EN PSICOLOGIA</td>
-      <td>AGOSTO-DICIEMBRE 2011</td>
-      <td>2011</td>
-      <td>10.0</td>
-    </tr>
-    <tr>
-      <th>236</th>
-      <td>28902881</td>
-      <td>22801</td>
-      <td>PSICOLOGIA PLANTEL ZACATECAS</td>
-      <td>156040</td>
-      <td>LICENCIADO EN PSICOLOGIA</td>
-      <td>1112SNON</td>
-      <td>129P1E</td>
-      <td>LICENCIATURA EN PSICOLOGIA EN EL AREA EDUCATIVA.</td>
-      <td>29DIVO</td>
-      <td>DIAGNOSTICO VOCACIONAL</td>
-      <td>...</td>
-      <td>10.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>PSICOLOGIA</td>
-      <td>LICENCIADO EN PSICOLOGIA</td>
-      <td>AGOSTO-DICIEMBRE 2011</td>
-      <td>2011</td>
-      <td>10.0</td>
-    </tr>
-    <tr>
-      <th>237</th>
-      <td>28902881</td>
-      <td>22801</td>
-      <td>PSICOLOGIA PLANTEL ZACATECAS</td>
-      <td>156040</td>
-      <td>LICENCIADO EN PSICOLOGIA</td>
-      <td>1112SNON</td>
-      <td>129P1E</td>
-      <td>LICENCIATURA EN PSICOLOGIA EN EL AREA EDUCATIVA.</td>
-      <td>29INE3</td>
-      <td>INVESTIGACION EDUCATIVA III</td>
-      <td>...</td>
-      <td>10.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>PSICOLOGIA</td>
-      <td>LICENCIADO EN PSICOLOGIA</td>
-      <td>AGOSTO-DICIEMBRE 2011</td>
-      <td>2011</td>
-      <td>10.0</td>
-    </tr>
-    <tr>
-      <th>238</th>
-      <td>28902881</td>
-      <td>22801</td>
-      <td>PSICOLOGIA PLANTEL ZACATECAS</td>
-      <td>156040</td>
-      <td>LICENCIADO EN PSICOLOGIA</td>
-      <td>1112SNON</td>
-      <td>129P1E</td>
-      <td>LICENCIATURA EN PSICOLOGIA EN EL AREA EDUCATIVA.</td>
-      <td>29INPR</td>
-      <td>INFORMACION PROFESIOGRAFICA</td>
-      <td>...</td>
-      <td>8.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>PSICOLOGIA</td>
-      <td>LICENCIADO EN PSICOLOGIA</td>
-      <td>AGOSTO-DICIEMBRE 2011</td>
-      <td>2011</td>
-      <td>8.0</td>
-    </tr>
-    <tr>
-      <th>239</th>
-      <td>28902881</td>
-      <td>22801</td>
-      <td>PSICOLOGIA PLANTEL ZACATECAS</td>
-      <td>156040</td>
-      <td>LICENCIADO EN PSICOLOGIA</td>
-      <td>1112SNON</td>
-      <td>129P1E</td>
-      <td>LICENCIATURA EN PSICOLOGIA EN EL AREA EDUCATIVA.</td>
-      <td>29ORED</td>
-      <td>ORIENTACION EDUCATIVA</td>
-      <td>...</td>
-      <td>9.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>PSICOLOGIA</td>
-      <td>LICENCIADO EN PSICOLOGIA</td>
-      <td>AGOSTO-DICIEMBRE 2011</td>
-      <td>2011</td>
-      <td>9.0</td>
-    </tr>
-    <tr>
-      <th>240</th>
-      <td>28902881</td>
-      <td>22801</td>
-      <td>PSICOLOGIA PLANTEL ZACATECAS</td>
-      <td>156040</td>
-      <td>LICENCIADO EN PSICOLOGIA</td>
-      <td>1112SNON</td>
-      <td>129P1E</td>
-      <td>LICENCIATURA EN PSICOLOGIA EN EL AREA EDUCATIVA.</td>
-      <td>29ORSE</td>
-      <td>ORIENTACION SEXUAL</td>
-      <td>...</td>
-      <td>9.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>PSICOLOGIA</td>
-      <td>LICENCIADO EN PSICOLOGIA</td>
-      <td>AGOSTO-DICIEMBRE 2011</td>
-      <td>2011</td>
-      <td>9.0</td>
-    </tr>
-    <tr>
-      <th>...</th>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-    </tr>
-    <tr>
-      <th>5721586</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1213SPAR</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13ESTT</td>
-      <td>ESTATICA</td>
-      <td>...</td>
-      <td>10.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>ENERO-JULIO 2013</td>
-      <td>2012</td>
-      <td>10.0</td>
-    </tr>
-    <tr>
-      <th>5721587</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1213SPAR</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13LAES</td>
-      <td>LABORATORIO DE ESTATICA</td>
-      <td>...</td>
-      <td>10.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>ENERO-JULIO 2013</td>
-      <td>2012</td>
-      <td>10.0</td>
-    </tr>
-    <tr>
-      <th>5721588</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1213SPAR</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13CIMA</td>
-      <td>CIENCIA DE LOS MATERIALES</td>
-      <td>...</td>
-      <td>8.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>ENERO-JULIO 2013</td>
-      <td>2012</td>
-      <td>8.0</td>
-    </tr>
-    <tr>
-      <th>5721589</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1213SPAR</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13PEPI</td>
-      <td>PROBABILIDAD Y ESTADISTICA PARA INGENIEROS</td>
-      <td>...</td>
-      <td>9.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>ENERO-JULIO 2013</td>
-      <td>2012</td>
-      <td>9.0</td>
-    </tr>
-    <tr>
-      <th>5721590</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1314SNON</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13ELMA</td>
-      <td>ELECTRICIDAD Y MAGNETISMO</td>
-      <td>...</td>
-      <td>9.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>AGOSTO-DICIEMBRE 2013</td>
-      <td>2013</td>
-      <td>9.0</td>
-    </tr>
-    <tr>
-      <th>5721591</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1314SNON</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13LAEM</td>
-      <td>LABORATORIO DE ELECTRICIDAD Y MAGNETISMO</td>
-      <td>...</td>
-      <td>8.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>AGOSTO-DICIEMBRE 2013</td>
-      <td>2013</td>
-      <td>8.0</td>
-    </tr>
-    <tr>
-      <th>5721592</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1314SNON</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13DINM</td>
-      <td>DINAMICA</td>
-      <td>...</td>
-      <td>10.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>AGOSTO-DICIEMBRE 2013</td>
-      <td>2013</td>
-      <td>10.0</td>
-    </tr>
-    <tr>
-      <th>5721593</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1314SNON</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13LADI</td>
-      <td>LABORATORIO DE DINAMICA</td>
-      <td>...</td>
-      <td>10.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>AGOSTO-DICIEMBRE 2013</td>
-      <td>2013</td>
-      <td>10.0</td>
-    </tr>
-    <tr>
-      <th>5721594</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1314SNON</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13ANAV</td>
-      <td>ANALISIS VECTORIAL</td>
-      <td>...</td>
-      <td>10.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>AGOSTO-DICIEMBRE 2013</td>
-      <td>2013</td>
-      <td>10.0</td>
-    </tr>
-    <tr>
-      <th>5721595</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1314SNON</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13ECUD</td>
-      <td>ECUACIONES DIFERENCIALES</td>
-      <td>...</td>
-      <td>8.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>AGOSTO-DICIEMBRE 2013</td>
-      <td>2013</td>
-      <td>8.0</td>
-    </tr>
-    <tr>
-      <th>5721596</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1314SPAR</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13PRTR</td>
-      <td>PRINCIPIOS DE TERMOFLUIDOS</td>
-      <td>...</td>
-      <td>9.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>ENERO-JULIO 2014</td>
-      <td>2013</td>
-      <td>9.0</td>
-    </tr>
-    <tr>
-      <th>5721597</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1314SPAR</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13LAPT</td>
-      <td>LABORATORIO DE PRINCIPIOS DE TERMOFLUIDOS</td>
-      <td>...</td>
-      <td>9.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>ENERO-JULIO 2014</td>
-      <td>2013</td>
-      <td>9.0</td>
-    </tr>
-    <tr>
-      <th>5721598</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1314SNON</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13METN</td>
-      <td>METODOS NUMERICOS</td>
-      <td>...</td>
-      <td>10.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>AGOSTO-DICIEMBRE 2013</td>
-      <td>2013</td>
-      <td>10.0</td>
-    </tr>
-    <tr>
-      <th>5721599</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1314SPAR</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13SILI</td>
-      <td>SISTEMAS LINEALES</td>
-      <td>...</td>
-      <td>10.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>ENERO-JULIO 2014</td>
-      <td>2013</td>
-      <td>10.0</td>
-    </tr>
-    <tr>
-      <th>5721600</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1314SPAR</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13MECR</td>
-      <td>MECANICA DEL CUERPO RIGIDO</td>
-      <td>...</td>
-      <td>9.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>ENERO-JULIO 2014</td>
-      <td>2013</td>
-      <td>9.0</td>
-    </tr>
-    <tr>
-      <th>5721601</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1213SNON</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13DIBM</td>
-      <td>DIBUJO MECANICO</td>
-      <td>...</td>
-      <td>8.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>AGOSTO-DICIEMBRE 2012</td>
-      <td>2012</td>
-      <td>8.0</td>
-    </tr>
-    <tr>
-      <th>5721602</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1213SPAR</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13COGI</td>
-      <td>COMUNICACION GRAFICA EN INGENIERIA</td>
-      <td>...</td>
-      <td>10.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>ENERO-JULIO 2013</td>
-      <td>2012</td>
-      <td>10.0</td>
-    </tr>
-    <tr>
-      <th>5721603</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1314SNON</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13MEIA</td>
-      <td>METROLOGIA</td>
-      <td>...</td>
-      <td>8.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>AGOSTO-DICIEMBRE 2013</td>
-      <td>2013</td>
-      <td>8.0</td>
-    </tr>
-    <tr>
-      <th>5721604</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1314SNON</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13LAME</td>
-      <td>LABORATORIO DE METROLOGIA</td>
-      <td>...</td>
-      <td>8.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>AGOSTO-DICIEMBRE 2013</td>
-      <td>2013</td>
-      <td>8.0</td>
-    </tr>
-    <tr>
-      <th>5721605</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1314SNON</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13TSE1</td>
-      <td>SOFTWARE ESPECIALIZADO I</td>
-      <td>...</td>
-      <td>9.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>AGOSTO-DICIEMBRE 2013</td>
-      <td>2013</td>
-      <td>9.0</td>
-    </tr>
-    <tr>
-      <th>5721606</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1314SPAR</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13INGM</td>
-      <td>INGENIERIA DE LOS MATERIALES</td>
-      <td>...</td>
-      <td>9.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>ENERO-JULIO 2014</td>
-      <td>2013</td>
-      <td>9.0</td>
-    </tr>
-    <tr>
-      <th>5721607</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1314SPAR</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13LAIM</td>
-      <td>LABORATORIO DE INGENIERIA DE LOS MATERIALES</td>
-      <td>...</td>
-      <td>10.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>ENERO-JULIO 2014</td>
-      <td>2013</td>
-      <td>10.0</td>
-    </tr>
-    <tr>
-      <th>5721608</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1314SPAR</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13MSD1</td>
-      <td>MECANICA DE SOLIDOS DEFORMABLES I</td>
-      <td>...</td>
-      <td>0.0</td>
-      <td>2014-06-12 14:53:02.960</td>
-      <td>7.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>ENERO-JULIO 2014</td>
-      <td>2013</td>
-      <td>7.0</td>
-    </tr>
-    <tr>
-      <th>5721609</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1314SPAR</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13LSD1</td>
-      <td>LABORATORIO DE MECANICA DE SOLIDOS DEFORMABLES I</td>
-      <td>...</td>
-      <td>8.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>ENERO-JULIO 2014</td>
-      <td>2013</td>
-      <td>8.0</td>
-    </tr>
-    <tr>
-      <th>5721610</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1415SNON</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13CIMC</td>
-      <td>CINEMATICA DE MECANISMOS</td>
-      <td>...</td>
-      <td>9.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>AGOSTO-DICIEMBRE 2014</td>
-      <td>2014</td>
-      <td>9.0</td>
-    </tr>
-    <tr>
-      <th>5721611</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1314SPAR</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13TSE2</td>
-      <td>SOFTWARE ESPECIALIZADO II</td>
-      <td>...</td>
-      <td>10.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>ENERO-JULIO 2014</td>
-      <td>2013</td>
-      <td>10.0</td>
-    </tr>
-    <tr>
-      <th>5721612</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1415SNON</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13TEE1</td>
-      <td>TECNOLOGIA MECANICA I</td>
-      <td>...</td>
-      <td>8.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>AGOSTO-DICIEMBRE 2014</td>
-      <td>2014</td>
-      <td>8.0</td>
-    </tr>
-    <tr>
-      <th>5721613</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1415SNON</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13LTME</td>
-      <td>LABORATORIO DE TECNOLOGIA MECANICA I</td>
-      <td>...</td>
-      <td>10.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>AGOSTO-DICIEMBRE 2014</td>
-      <td>2014</td>
-      <td>10.0</td>
-    </tr>
-    <tr>
-      <th>5721614</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1415SNON</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13INEL</td>
-      <td>INGENIERIA ELECTRICA</td>
-      <td>...</td>
-      <td>9.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>AGOSTO-DICIEMBRE 2014</td>
-      <td>2014</td>
-      <td>9.0</td>
-    </tr>
-    <tr>
-      <th>5721615</th>
-      <td>29100540</td>
-      <td>22400</td>
-      <td>INGENIERIA I</td>
-      <td>155040</td>
-      <td>INGENIERO MECANICO</td>
-      <td>1415SNON</td>
-      <td>113IN5</td>
-      <td>LICENCIATURA EN INGENIERIA MECANICA</td>
-      <td>13MSD2</td>
-      <td>MECANICA DE SOLIDOS DEFORMABLES II</td>
-      <td>...</td>
-      <td>9.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>NaN</td>
-      <td>0.0</td>
-      <td>INGENIERIA I</td>
-      <td>INGENIERO MECANICO</td>
-      <td>AGOSTO-DICIEMBRE 2014</td>
-      <td>2014</td>
-      <td>9.0</td>
-    </tr>
-  </tbody>
-</table>
-<p>3169561 rows × 26 columns</p>
-</div>
-
-
+Una vez limpios los datos, se procede a almacenarlos en una base de datos documental en MongoDB.
 
 
 ```python
@@ -14612,9 +13140,4 @@ ce = db.datos
 ```python
 for idx, row in lic_pos.iterrows():
     ce.insert_one(json.loads(row.to_json()))
-```
-
-
-```python
-
 ```
